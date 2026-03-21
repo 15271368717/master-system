@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { 
   Send, Bot, History, Cpu, Zap, ChevronDown, ChevronRight, 
   BarChart3, Settings, Play, Activity, MessageSquare, Folder,
-  GitBranch, Sparkles, LayoutGrid
+  GitBranch, Sparkles, LayoutGrid, CheckCircle, XCircle, AlertCircle
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -20,13 +20,21 @@ interface Agent {
   status: 'idle' | 'busy' | 'offline'
 }
 
+interface SubTask {
+  id: string
+  targetAgent: string
+  instruction: string
+  result?: string
+  score?: number
+}
+
 interface Message {
   id: string
-  role: 'user' | 'system' | 'protocol'
+  role: 'user' | 'system' | 'protocol' | 'jury'
   content: string
   timestamp: Date
-  agents?: string[]
-  mode?: 'standard' | 'consensus' | 'jury'
+  subTasks?: SubTask[]
+  finalScore?: number
 }
 
 interface HistoryItem {
@@ -58,7 +66,7 @@ const AGENTS: Agent[] = [
       { category: '综合问答', value: 80 }
     ],
     enabled: true, 
-    taskCount: 3, 
+    taskCount: 0, 
     status: 'idle' 
   },
   { 
@@ -74,8 +82,8 @@ const AGENTS: Agent[] = [
       { category: '综合问答', value: 70 }
     ],
     enabled: true, 
-    taskCount: 2, 
-    status: 'busy' 
+    taskCount: 0, 
+    status: 'idle' 
   },
   { 
     id: 'kimi', 
@@ -90,7 +98,7 @@ const AGENTS: Agent[] = [
       { category: '综合问答', value: 85 }
     ],
     enabled: true, 
-    taskCount: 1, 
+    taskCount: 0, 
     status: 'idle' 
   },
   { 
@@ -106,22 +114,6 @@ const AGENTS: Agent[] = [
       { category: '综合问答', value: 92 }
     ],
     enabled: true, 
-    taskCount: 2, 
-    status: 'idle' 
-  },
-  { 
-    id: 'gemini', 
-    name: 'Gemini', 
-    provider: 'Google', 
-    model: 'Gemini-3-Pro',
-    strengths: ['决策中枢', '任务规划', '成果整合', '质量评估'],
-    radar: [
-      { category: '逻辑推理', value: 98 },
-      { category: '创意写作', value: 90 },
-      { category: '长文本', value: 95 },
-      { category: '综合问答', value: 98 }
-    ],
-    enabled: true, 
     taskCount: 0, 
     status: 'idle' 
   }
@@ -131,15 +123,13 @@ const AGENT_COLORS: Record<string, string> = {
   'deepseek-v3': '#5E5CF5',
   'doubao': '#FF6B35',
   'kimi': '#00BFFF',
-  'tongyi': '#FF69B4',
-  'gemini': '#10A37F'
+  'tongyi': '#FF69B4'
 }
 
 type CollaborationMode = 'standard' | 'consensus' | 'jury'
 
 // ==================== 辅助组件 ====================
 
-// 环形图组件
 function DonutChart({ agents }: { agents: Agent[] }) {
   const enabledAgents = agents.filter(a => a.enabled)
   const total = enabledAgents.reduce((sum, a) => sum + a.taskCount, 0) || 1
@@ -156,7 +146,7 @@ function DonutChart({ agents }: { agents: Agent[] }) {
   return (
     <div className="donut-chart">
       <svg viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
-        {segments.map((seg, i) => {
+        {segments.map((seg) => {
           const radius = 40
           const circumference = 2 * Math.PI * radius
           const strokeDasharray = circumference
@@ -189,7 +179,6 @@ function DonutChart({ agents }: { agents: Agent[] }) {
   )
 }
 
-// 雷达图组件
 function RadarChart({ data, color = '#6366f1' }: { data: { category: string; value: number }[], color?: string }) {
   const size = 100
   const center = size / 2
@@ -210,7 +199,6 @@ function RadarChart({ data, color = '#6366f1' }: { data: { category: string; val
   
   return (
     <svg viewBox={`0 0 ${size} ${size}`} className="radar-chart">
-      {/* 背景网格 */}
       {[25, 50, 75, 100].map(level => (
         <circle
           key={level}
@@ -222,8 +210,6 @@ function RadarChart({ data, color = '#6366f1' }: { data: { category: string; val
           strokeWidth="1"
         />
       ))}
-      
-      {/* 数据区域 */}
       <path
         d={pathD}
         fill={`${color}20`}
@@ -231,16 +217,8 @@ function RadarChart({ data, color = '#6366f1' }: { data: { category: string; val
         strokeWidth="1.5"
         strokeLinejoin="round"
       />
-      
-      {/* 数据点 */}
       {points.map((p, i) => (
-        <circle
-          key={i}
-          cx={p.x}
-          cy={p.y}
-          r="3"
-          fill={color}
-        />
+        <circle key={i} cx={p.x} cy={p.y} r="3" fill={color} />
       ))}
     </svg>
   )
@@ -249,7 +227,6 @@ function RadarChart({ data, color = '#6366f1' }: { data: { category: string; val
 // ==================== 主应用 ====================
 
 export default function App() {
-  // 状态
   const [agents, setAgents] = useState<Agent[]>(AGENTS)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -257,28 +234,91 @@ export default function App() {
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [activeTasks, setActiveTasks] = useState<TaskItem[]>([])
   
-  // 右侧面板状态
   const [collabModeExpanded, setCollabModeExpanded] = useState(false)
-  const [collaborationMode, setCollaborationMode] = useState<CollaborationMode>('jury')
+  const [collaborationMode, setCollaborationMode] = useState<CollaborationMode>('standard')
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set())
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
-  // 计算统计数据
   const totalTasks = agents.reduce((sum, a) => sum + a.taskCount, 0)
   const enabledAgents = agents.filter(a => a.enabled)
   const onlineCount = enabledAgents.filter(a => a.status !== 'offline').length
   
-  // 自动滚动
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
-  
-  // 发送消息
+
+  // 决策AI拆分指令为子任务
+  const splitTask = useCallback((userInput: string): SubTask[] => {
+    // 根据输入内容智能拆分
+    const subTasks: SubTask[] = []
+    const inputLower = userInput.toLowerCase()
+    
+    // 逻辑分析任务
+    if (inputLower.includes('分析') || inputLower.includes('逻辑') || inputLower.includes('计算') || inputLower.includes('代码')) {
+      subTasks.push({
+        id: `task-${Date.now()}-1`,
+        targetAgent: 'deepseek-v3',
+        instruction: `逻辑分析: ${userInput}`
+      })
+    }
+    
+    // 创意写作任务
+    if (inputLower.includes('写') || inputLower.includes('创作') || inputLower.includes('文案') || inputLower.includes('诗')) {
+      subTasks.push({
+        id: `task-${Date.now()}-2`,
+        targetAgent: 'doubao',
+        instruction: `创意写作: ${userInput}`
+      })
+    }
+    
+    // 长文本任务
+    if (inputLower.includes('长') || inputLower.includes('文档') || inputLower.includes('阅读') || userInput.length > 200) {
+      subTasks.push({
+        id: `task-${Date.now()}-3`,
+        targetAgent: 'kimi',
+        instruction: `长文本处理: ${userInput}`
+      })
+    }
+    
+    // 综合问答（默认添加）
+    subTasks.push({
+      id: `task-${Date.now()}-4`,
+      targetAgent: 'tongyi',
+      instruction: `综合回答: ${userInput}`
+    })
+    
+    // 去重
+    return subTasks.filter((task, index, self) => 
+      index === self.findIndex(t => t.targetAgent === task.targetAgent)
+    )
+  }, [])
+
+  // 模拟AI执行子任务
+  const executeSubTask = async (subTask: SubTask): Promise<SubTask> => {
+    await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 500))
+    
+    const agent = agents.find(a => a.id === subTask.targetAgent)
+    const results: Record<string, string> = {
+      'deepseek-v3': `【逻辑分析结果】\n\n针对"${subTask.instruction.replace('逻辑分析: ', '')}"的分析：\n\n1. 问题核心识别\n2. 逻辑结构拆解\n3. 关键要素提取\n4. 结论推导\n\n分析完成。`,
+      'doubao': `【创意内容】\n\n${subTask.instruction.includes('诗') ? '春风拂面，万物苏醒\n绿意盎然，花开满地\n阳光温暖，鸟语花香\n人间四月，诗意盎然' : '【创意写作完成】\n\n根据您的要求，已完成创意内容生成。'}`,
+      'kimi': `【长文本理解】\n\n已理解您的输入内容：\n"${subTask.instruction.replace('长文本处理: ', '').slice(0, 50)}..."\n\n提取关键信息点，进行深度理解与分析。`,
+      'tongyi': `【综合回答】\n\n综合各维度信息，为您提供完整回答：\n\n${subTask.instruction.replace('综合回答: ', '')}\n\n以上是综合处理结果。`
+    }
+    
+    return {
+      ...subTask,
+      result: results[subTask.targetAgent] || '处理完成',
+      score: 70 + Math.floor(Math.random() * 25) // 70-95分
+    }
+  }
+
   const handleSend = useCallback(async () => {
     if (!input.trim() || loading) return
     
     const userInput = input.trim()
+    
+    // 用户消息
     const userMsg: Message = {
       id: `msg-${Date.now()}-user`,
       role: 'user',
@@ -286,51 +326,80 @@ export default function App() {
       timestamp: new Date()
     }
     
+    // 决策AI拆分指令的协议日志
+    const subTasks = splitTask(userInput)
+    const routingAgents = subTasks.map(t => agents.find(a => a.id === t.targetAgent)?.name).filter(Boolean)
+    
     const protocolMsg: Message = {
       id: `msg-${Date.now()}-protocol`,
       role: 'protocol',
-      content: `[SYS_ROUTING]: "${userInput.slice(0, 50)}${userInput.length > 50 ? '...' : ''}" -> [${enabledAgents.map(a => a.name).join(', ')}]`,
-      timestamp: new Date()
+      content: `[DECISION_AI]: 指令拆分完成\n[SYS_ROUTING]: "${userInput.slice(0, 40)}${userInput.length > 40 ? '...' : ''}" -> [${routingAgents.join(', ')}]`,
+      timestamp: new Date(),
+      subTasks: subTasks
     }
     
     setMessages(prev => [...prev, userMsg, protocolMsg])
     setInput('')
     setLoading(true)
     
-    // 添加任务到活动列表
-    const taskId = `task-${Date.now()}`
-    setActiveTasks(prev => [...prev, { id: taskId, name: userInput.slice(0, 30), status: 'running' }])
-    
-    // 更新 AI 任务计数
+    // 更新AI状态为忙碌
     setAgents(prev => prev.map(a => 
-      a.enabled ? { ...a, taskCount: a.taskCount + 1, status: 'busy' as const } : a
+      subTasks.some(t => t.targetAgent === a.id) ? { ...a, taskCount: a.taskCount + 1, status: 'busy' as const } : a
     ))
     
-    // 模拟处理延迟
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    // 执行所有子任务
+    const executedTasks: SubTask[] = []
+    for (const subTask of subTasks) {
+      const result = await executeSubTask(subTask)
+      executedTasks.push(result)
+      
+      // 实时更新该任务的执行状态
+      setMessages(prev => prev.map(m => 
+        m.id === protocolMsg.id 
+          ? { ...m, subTasks: executedTasks }
+          : m
+      ))
+    }
     
-    // 生成响应
+    // 模拟评审团评价结果
+    await new Promise(resolve => setTimeout(resolve, 600))
+    
+    const avgScore = executedTasks.reduce((sum, t) => sum + (t.score || 0), 0) / executedTasks.length
+    const passThreshold = 75
+    const passed = avgScore >= passThreshold
+    
+    // 评审团消息
+    const juryMsg: Message = {
+      id: `msg-${Date.now()}-jury`,
+      role: 'jury',
+      content: `【评审团评价结果】\n\n${executedTasks.map(t => {
+        const agentName = agents.find(a => a.id === t.targetAgent)?.name
+        const status = (t.score || 0) >= passThreshold ? '✓ 通过' : '✗ 需优化'
+        return `${agentName}: ${t.score}分 ${status}`
+      }).join('\n')}\n\n平均分: ${avgScore.toFixed(1)}/100\n最终判定: ${passed ? '✓ 采用' : '✗ 重新处理'}`,
+      timestamp: new Date(),
+      subTasks: executedTasks,
+      finalScore: avgScore
+    }
+    
+    // 最终输出结果
     const systemMsg: Message = {
       id: `msg-${Date.now()}-system`,
       role: 'system',
-      content: `【评审团机制】已完成多维评分与交叉验证\n\n---\n\n## 处理结果\n\n${userInput}\n\n---\n\n**处理摘要：**\n- 逻辑分析（DeepSeek-V3）: 已完成\n- 创意生成（豆包）: 已完成  \n- 长文本理解（Kimi）: 已完成\n- 综合评估（通义千问）: 已完成\n- 决策整合（Gemini）: 已采纳\n\n**质量评分：** 92/100 (通过)`,
+      content: `【最终输出】\n\n${executedTasks.map(t => {
+        const agentName = agents.find(a => a.id === t.targetAgent)?.name
+        return `## ${agentName} 的输出\n\n${t.result}`
+      }).join('\n\n---\n\n')}`,
       timestamp: new Date(),
-      agents: enabledAgents.map(a => a.name),
-      mode: collaborationMode
+      subTasks: executedTasks,
+      finalScore: avgScore
     }
     
-    setMessages(prev => [...prev, systemMsg])
+    setMessages(prev => [...prev, juryMsg, systemMsg])
     setLoading(false)
     
-    // 更新任务状态
-    setActiveTasks(prev => prev.map(t => 
-      t.id === taskId ? { ...t, status: 'completed' } : t
-    ))
-    
-    // 更新 AI 状态
-    setAgents(prev => prev.map(a => 
-      a.enabled ? { ...a, status: 'idle' as const } : a
-    ))
+    // 重置AI状态
+    setAgents(prev => prev.map(a => ({ ...a, status: 'idle' as const })))
     
     // 添加到历史
     setHistory(prev => [{
@@ -340,9 +409,8 @@ export default function App() {
       preview: userInput.slice(0, 40)
     }, ...prev])
     
-  }, [input, loading, enabledAgents, collaborationMode])
+  }, [input, loading, agents, splitTask])
   
-  // 按键发送
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -350,29 +418,24 @@ export default function App() {
     }
   }
   
-  // 切换 AI 开关
   const toggleAgent = (agentId: string) => {
     setAgents(prev => prev.map(a => 
       a.id === agentId ? { ...a, enabled: !a.enabled } : a
     ))
   }
   
-  // 切换 AI 详情展开
   const toggleAgentDetails = (agentId: string) => {
     setExpandedAgents(prev => {
       const next = new Set(prev)
-      if (next.has(agentId)) {
-        next.delete(agentId)
-      } else {
-        next.add(agentId)
-      }
+      if (next.has(agentId)) next.delete(agentId)
+      else next.add(agentId)
       return next
     })
   }
 
   return (
     <div className="app-container">
-      {/* ==================== 头部 ==================== */}
+      {/* 头部 */}
       <header className="header">
         <div className="header-title">
           <Sparkles size={24} />
@@ -390,14 +453,13 @@ export default function App() {
         </div>
       </header>
 
-      {/* ==================== 左侧栏 ==================== */}
+      {/* 左侧栏 */}
       <aside className="panel">
         <div className="panel-header">
           <LayoutGrid size={14} />
           控制面板
         </div>
         
-        {/* 历史记录 */}
         <div className="history-section">
           <div className="section-title">
             <History size={12} />
@@ -417,23 +479,22 @@ export default function App() {
           )}
         </div>
         
-        {/* 任务分区 */}
         <div className="task-section">
           <div className="section-title">
             <Play size={12} />
             任务分区
           </div>
-          {activeTasks.filter(t => t.status === 'running').length === 0 ? (
+          {messages.filter(m => m.role === 'protocol' && m.subTasks?.some(t => !t.result)).length === 0 ? (
             <div style={{ color: 'var(--color-text-muted)', fontSize: '13px', textAlign: 'center', padding: '20px 0' }}>
               暂无运行中的任务
             </div>
           ) : (
-            activeTasks.filter(t => t.status === 'running').map(task => (
+            messages.filter(m => m.role === 'protocol').slice(-1)[0]?.subTasks?.map(task => (
               <div key={task.id} className="task-item">
-                <div className="task-spinner"></div>
+                <div className={task.result ? 'task-spinner' : ''} style={task.result ? {} : { background: '#10b981', borderRadius: '50%', width: 16, height: 16 }}></div>
                 <div className="task-info">
-                  <div className="task-name">{task.name}</div>
-                  <div className="task-status">运行中...</div>
+                  <div className="task-name">{agents.find(a => a.id === task.targetAgent)?.name}</div>
+                  <div className="task-status">{task.result ? '已完成' : '处理中...'}</div>
                 </div>
               </div>
             ))
@@ -448,28 +509,25 @@ export default function App() {
         </div>
       </aside>
 
-      {/* ==================== 中间栏 ==================== */}
+      {/* 中间栏 */}
       <main className="panel chat-container">
         <div className="panel-header">
           <MessageSquare size={14} />
           核心交互区
-          {collaborationMode === 'jury' && (
-            <span className="badge badge-jury">
-              <Sparkles size={10} />
-              评审团模式
-            </span>
-          )}
+          <span className="badge badge-jury">
+            <Sparkles size={10} />
+            {collaborationMode === 'jury' ? '评审团' : collaborationMode === 'consensus' ? '讨论共识' : '标准分工'}
+          </span>
         </div>
         
-        {/* 消息列表 */}
         <div className="chat-messages">
           {messages.length === 0 && (
             <div className="empty-state">
               <div className="empty-icon">🎯</div>
               <p style={{ fontSize: '18px', marginBottom: '8px' }}>欢迎使用 M.A.S.T.E.R.</p>
               <p style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
-                决策中枢 Gemini-3-Pro 已就绪<br/>
-                后台评审团机制默认启用
+                决策中枢将指令拆分给各AI节点执行<br/>
+                评审团在后台评价AI的输出结果
               </p>
             </div>
           )}
@@ -481,21 +539,30 @@ export default function App() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className={`message ${msg.role === 'user' ? 'message-user' : msg.role === 'protocol' ? '' : 'message-system'}`}
+                className={`message ${msg.role === 'user' ? 'message-user' : msg.role === 'system' ? 'message-system' : ''}`}
               >
                 {msg.role === 'system' && (
                   <div className="message-meta">
-                    🤖 {msg.agents?.join(' + ')} · 
-                    <span className={`badge ${msg.mode === 'jury' ? 'badge-jury' : 'badge-standard'}`}>
-                      {msg.mode === 'jury' ? '评审团' : msg.mode === 'consensus' ? '讨论共识' : '标准分工'}
-                    </span>
+                    🤖 最终输出
+                    {msg.finalScore && (
+                      <span style={{ marginLeft: 8, color: msg.finalScore >= 75 ? '#10b981' : '#f59e0b' }}>
+                        评分: {msg.finalScore.toFixed(1)}
+                      </span>
+                    )}
                   </div>
                 )}
                 {msg.role === 'protocol' && (
                   <div className="message-protocol">
-                    <span className="protocol-tag">SYS_ROUTING</span>
-                    <span className="protocol-arrow">→</span>
-                    {msg.content.replace('[SYS_ROUTING]: ', '')}
+                    <span className="protocol-tag">DECISION_AI</span>
+                    <div style={{ marginTop: 4 }}>{msg.content.split('\n')[1]}</div>
+                  </div>
+                )}
+                {msg.role === 'jury' && (
+                  <div className="message-meta" style={{ color: '#10b981' }}>
+                    ⚖️ 评审团评价结果
+                    {msg.finalScore && (
+                      <span style={{ marginLeft: 8 }}>平均分: {msg.finalScore.toFixed(1)}</span>
+                    )}
                   </div>
                 )}
                 <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
@@ -511,7 +578,7 @@ export default function App() {
             >
               <div className="loading-spinner">
                 <div className="spinner"></div>
-                <span>评审团协同处理中...</span>
+                <span>决策AI拆分指令 -> 分发执行 -> 评审团评分中...</span>
               </div>
             </motion.div>
           )}
@@ -519,12 +586,11 @@ export default function App() {
           <div ref={messagesEndRef} />
         </div>
         
-        {/* 输入区域 */}
         <div className="chat-input-area">
           <div className="input-wrapper">
             <textarea
               className="chat-input"
-              placeholder="输入复杂指令，支持多行..."
+              placeholder="输入指令，决策AI将自动拆分并分发..."
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -541,7 +607,7 @@ export default function App() {
         </div>
       </main>
 
-      {/* ==================== 右侧栏 ==================== */}
+      {/* 右侧栏 */}
       <aside className="panel">
         <div className="panel-header">
           <div className="right-panel-header" style={{ width: '100%' }}>
@@ -552,7 +618,6 @@ export default function App() {
           </div>
         </div>
         
-        {/* 资源概览 - 环形图 */}
         <div className="resource-section">
           <div className="resource-header">
             <div className="resource-title">
@@ -569,10 +634,7 @@ export default function App() {
           <div className="resource-legend">
             {enabledAgents.map(agent => (
               <div key={agent.id} className="legend-item">
-                <div 
-                  className="legend-dot" 
-                  style={{ backgroundColor: AGENT_COLORS[agent.id] }}
-                />
+                <div className="legend-dot" style={{ backgroundColor: AGENT_COLORS[agent.id] }}/>
                 <span>{agent.name}</span>
                 <span style={{ color: 'var(--color-text-muted)' }}>({agent.taskCount})</span>
               </div>
@@ -580,12 +642,8 @@ export default function App() {
           </div>
         </div>
         
-        {/* 协作模式 */}
         <div className="collab-mode-section">
-          <div 
-            className="mode-header"
-            onClick={() => setCollabModeExpanded(!collabModeExpanded)}
-          >
+          <div className="mode-header" onClick={() => setCollabModeExpanded(!collabModeExpanded)}>
             <div className="mode-title">
               <GitBranch size={12} />
               协作模式
@@ -600,80 +658,35 @@ export default function App() {
                 {collaborationMode === 'jury' ? '评审团' : collaborationMode === 'consensus' ? '讨论共识' : '标准分工'}
               </span>
             </div>
-            <ChevronDown 
-              size={16} 
-              style={{ 
-                transform: collabModeExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.3s',
-                color: 'var(--color-text-muted)'
-              }} 
-            />
+            <ChevronDown size={16} style={{ transform: collabModeExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s', color: 'var(--color-text-muted)' }} />
           </div>
           
           <AnimatePresence>
             {collabModeExpanded && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="mode-content"
-              >
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="mode-content">
                 <div className="mode-buttons">
-                  <button 
-                    className={`mode-btn ${collaborationMode === 'standard' ? 'active' : ''}`}
-                    onClick={() => setCollaborationMode('standard')}
-                  >
-                    标准分工
-                  </button>
-                  <button 
-                    className={`mode-btn ${collaborationMode === 'consensus' ? 'active' : ''}`}
-                    onClick={() => setCollaborationMode('consensus')}
-                  >
-                    讨论共识
-                  </button>
-                  <button 
-                    className={`mode-btn ${collaborationMode === 'jury' ? 'active' : ''}`}
-                    onClick={() => setCollaborationMode('jury')}
-                  >
-                    评审团
-                  </button>
+                  <button className={`mode-btn ${collaborationMode === 'standard' ? 'active' : ''}`} onClick={() => setCollaborationMode('standard')}>标准分工</button>
+                  <button className={`mode-btn ${collaborationMode === 'consensus' ? 'active' : ''}`} onClick={() => setCollaborationMode('consensus')}>讨论共识</button>
+                  <button className={`mode-btn ${collaborationMode === 'jury' ? 'active' : ''}`} onClick={() => setCollaborationMode('jury')}>评审团</button>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
         
-        {/* AI 节点列表 */}
         <div className="agents-section">
           <div className="agents-header">
-            <div className="agents-title">
-              <Zap size={12} />
-              智能节点
-            </div>
-            <span className="agents-count">
-              {onlineCount} 在线
-            </span>
+            <div className="agents-title"><Zap size={12} />智能节点</div>
+            <span className="agents-count">{onlineCount} 在线</span>
           </div>
           
           <div className="agents-list">
             {agents.map(agent => (
-              <motion.div 
-                key={agent.id}
-                layout
-                className={`agent-card ${agent.enabled ? 'enabled' : ''}`}
-              >
+              <motion.div key={agent.id} layout className={`agent-card ${agent.enabled ? 'enabled' : ''}`}>
                 <div className="agent-card-header">
                   <div className="agent-toggle-area">
-                    <div 
-                      className={`toggle-switch ${agent.enabled ? 'active' : ''}`}
-                      onClick={() => toggleAgent(agent.id)}
-                    />
-                    <button 
-                      className={`fold-btn ${expandedAgents.has(agent.id) ? 'expanded' : ''}`}
-                      onClick={() => toggleAgentDetails(agent.id)}
-                    >
-                      <ChevronDown size={14} />
-                    </button>
+                    <div className={`toggle-switch ${agent.enabled ? 'active' : ''}`} onClick={() => toggleAgent(agent.id)}/>
+                    <button className={`fold-btn ${expandedAgents.has(agent.id) ? 'expanded' : ''}`} onClick={() => toggleAgentDetails(agent.id)}><ChevronDown size={14}/></button>
                   </div>
                   
                   <div className="agent-info">
@@ -687,37 +700,20 @@ export default function App() {
                   </div>
                 </div>
                 
-                {/* 详情折叠区 */}
                 <AnimatePresence>
                   {expandedAgents.has(agent.id) && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="agent-details expanded"
-                    >
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="agent-details expanded">
                       <div className="detail-row">
                         <span className="detail-label">状态</span>
-                        <span className={`detail-value ${agent.enabled ? 'online' : 'offline'}`}>
-                          {agent.enabled ? '在线' : '离线'}
-                        </span>
+                        <span className={`detail-value ${agent.enabled ? 'online' : 'offline'}`}>{agent.enabled ? '在线' : '离线'}</span>
                       </div>
                       <div className="detail-row">
                         <span className="detail-label">今日任务</span>
                         <span className="detail-value">{agent.taskCount}</span>
                       </div>
-                      
-                      {/* 雷达图 */}
-                      <RadarChart 
-                        data={agent.radar} 
-                        color={AGENT_COLORS[agent.id]} 
-                      />
-                      
-                      {/* 能力标签 */}
+                      <RadarChart data={agent.radar} color={AGENT_COLORS[agent.id]} />
                       <div className="agent-strengths">
-                        {agent.strengths.map((s, i) => (
-                          <span key={i} className="strength-tag">{s}</span>
-                        ))}
+                        {agent.strengths.map((s, i) => <span key={i} className="strength-tag">{s}</span>)}
                       </div>
                     </motion.div>
                   )}
