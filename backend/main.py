@@ -1,5 +1,5 @@
 """
-M.A.S.T.E.R. System - FastAPI 主应用
+M.A.S.T.E.R. System - FastAPI Main Application
 """
 
 import os
@@ -14,28 +14,24 @@ from pydantic import BaseModel
 from core.engine import TaskMode, DEFAULT_AGENTS, get_decision_engine
 
 
-# 直接从环境变量读取
 openai_api_key = os.getenv("OPENAI_API_KEY")
 anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 启动时初始化
-    print("🚀 M.A.S.T.E.R. System 启动中...")
+    print("[M.A.S.T.E.R.] Starting up...")
     yield
-    # 关闭时清理
-    print("🛑 M.A.S.T.E.R. System 关闭")
+    print("[M.A.S.T.E.R.] Shutting down...")
 
 
 app = FastAPI(
     title="M.A.S.T.E.R. System API",
-    description="多智能体协同任务调度与成果整合系统",
+    description="Multi-Agent Synergized Task Execution & Result Integration System",
     version="1.0.0",
     lifespan=lifespan
 )
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -45,11 +41,10 @@ app.add_middleware(
 )
 
 
-# ============== 数据模型 ==============
-
+# Data Models
 class TaskRequest(BaseModel):
     input: str
-    mode: str = "standard"  # standard / consensus / jury
+    mode: str = "standard"
     agent_ids: Optional[list[str]] = None
 
 
@@ -68,8 +63,7 @@ class AgentInfo(BaseModel):
     radar: dict[str, int]
 
 
-# ============== API 路由 ==============
-
+# API Routes
 @app.get("/")
 async def root():
     return {
@@ -86,7 +80,7 @@ async def health():
 
 @app.get("/api/agents", response_model=list[AgentInfo])
 async def list_agents():
-    """获取所有 AI 节点信息"""
+    """Get all AI node information"""
     return [
         AgentInfo(
             agent_id=agent.agent_id,
@@ -100,16 +94,15 @@ async def list_agents():
 
 @app.post("/api/agents/{agent_id}/test")
 async def test_agent(agent_id: str):
-    """测试单个 AI 连接"""
+    """Test single AI connection"""
     if agent_id not in DEFAULT_AGENTS:
-        raise HTTPException(status_code=404, detail="AI 节点不存在")
+        raise HTTPException(status_code=404, detail="AI node not found")
     
     engine = get_decision_engine()
     
     try:
-        # 简单测试
         result = await engine._standard_mode(
-            "你好，请用一句话介绍你自己",
+            "Hello, please introduce yourself in one sentence",
             [DEFAULT_AGENTS[agent_id]]
         )
         return {"status": "ok", "response": result["final"][:200]}
@@ -119,23 +112,20 @@ async def test_agent(agent_id: str):
 
 @app.post("/api/tasks", response_model=TaskResponse)
 async def create_task(request: TaskRequest):
-    """创建并执行新任务"""
+    """Create and execute new task"""
     
-    # 验证模式
     try:
         mode = TaskMode(request.mode)
     except ValueError:
-        raise HTTPException(status_code=400, detail="无效的模式: standard/consensus/jury")
+        raise HTTPException(status_code=400, detail="Invalid mode: standard/consensus/jury")
     
-    # 获取指定 AI 或自动匹配
     agents = None
     if request.agent_ids:
         from core.engine import DEFAULT_AGENTS
         agents = [DEFAULT_AGENTS[a] for a in request.agent_ids if a in DEFAULT_AGENTS]
         if not agents:
-            raise HTTPException(status_code=400, detail="指定的 AI 节点不存在")
+            raise HTTPException(status_code=400, detail="Specified AI node not found")
     
-    # 执行任务
     engine = get_decision_engine()
     
     try:
@@ -153,11 +143,10 @@ async def create_task(request: TaskRequest):
             result=result["result"]
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"任务执行失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Task execution failed: {str(e)}")
 
 
-# ============== WebSocket ==============
-
+# WebSocket
 class ConnectionManager:
     def __init__(self):
         self.active_connections: list[WebSocket] = []
@@ -182,18 +171,16 @@ manager = ConnectionManager()
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket 实时通信"""
+    """WebSocket real-time communication"""
     await manager.connect(websocket)
     
     try:
         while True:
             data = await websocket.receive_json()
             
-            # 处理消息
             msg_type = data.get("type", "task")
             
             if msg_type == "task":
-                # 执行任务
                 engine = get_decision_engine()
                 try:
                     mode = TaskMode(data.get("mode", "standard"))
