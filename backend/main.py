@@ -12,15 +12,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from core.engine import TaskMode, DEFAULT_AGENTS, get_decision_engine
-
-
-openai_api_key = os.getenv("OPENAI_API_KEY")
-anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+from core.providers import get_provider_manager
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("[M.A.S.T.E.R.] Starting up...")
+    
+    # Check provider health on startup
+    provider_mgr = get_provider_manager()
+    health = await provider_mgr.check_all_health()
+    print(f"[M.A.S.T.E.R.] Provider Health: {health}")
+    
     yield
     print("[M.A.S.T.E.R.] Shutting down...")
 
@@ -28,7 +31,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="M.A.S.T.E.R. System API",
     description="Multi-Agent Synergized Task Execution & Result Integration System",
-    version="1.0.0",
+    version="2.1.0",
     lifespan=lifespan
 )
 
@@ -59,6 +62,9 @@ class TaskResponse(BaseModel):
 class AgentInfo(BaseModel):
     agent_id: str
     name: str
+    provider_type: str
+    provider: str
+    model: str
     strengths: list[str]
     radar: dict[str, int]
 
@@ -68,14 +74,29 @@ class AgentInfo(BaseModel):
 async def root():
     return {
         "name": "M.A.S.T.E.R. System",
-        "version": "1.0.0",
+        "version": "2.1.0",
         "status": "running"
     }
 
 
 @app.get("/api/health")
 async def health():
-    return {"status": "healthy"}
+    """Check system and provider health"""
+    provider_mgr = get_provider_manager()
+    provider_health = await provider_mgr.check_all_health()
+    
+    # Count available providers
+    llm_count = sum(1 for v in provider_health["llm"].values() if v)
+    search_count = sum(1 for v in provider_health["search"].values() if v)
+    
+    return {
+        "status": "healthy",
+        "providers": {
+            "llm": f"{llm_count}/{len(provider_health['llm'])}",
+            "search": f"{search_count}/{len(provider_health['search'])}"
+        },
+        "details": provider_health
+    }
 
 
 @app.get("/api/agents", response_model=list[AgentInfo])
@@ -85,11 +106,39 @@ async def list_agents():
         AgentInfo(
             agent_id=agent.agent_id,
             name=agent.name,
+            provider_type=agent.provider_type,
+            provider=agent.provider,
+            model=agent.model,
             strengths=agent.strengths,
             radar=agent.radar
         )
         for agent in DEFAULT_AGENTS.values()
     ]
+
+
+@app.get("/api/agents/categories")
+async def list_agent_categories():
+    """Get agents grouped by category"""
+    llm_agents = []
+    search_agents = []
+    
+    for agent in DEFAULT_AGENTS.values():
+        agent_info = {
+            "agent_id": agent.agent_id,
+            "name": agent.name,
+            "provider": agent.provider,
+            "model": agent.model,
+            "strengths": agent.strengths
+        }
+        if agent.provider_type == "llm":
+            llm_agents.append(agent_info)
+        else:
+            search_agents.append(agent_info)
+    
+    return {
+        "llm": llm_agents,
+        "search": search_agents
+    }
 
 
 @app.post("/api/agents/{agent_id}/test")
@@ -98,14 +147,12 @@ async def test_agent(agent_id: str):
     if agent_id not in DEFAULT_AGENTS:
         raise HTTPException(status_code=404, detail="AI node not found")
     
+    agent = DEFAULT_AGENTS[agent_id]
     engine = get_decision_engine()
     
     try:
-        result = await engine._standard_mode(
-            "Hello, please introduce yourself in one sentence",
-            [DEFAULT_AGENTS[agent_id]]
-        )
-        return {"status": "ok", "response": result["final"][:200]}
+        result = await engine._call_agent(agent, "Hello, please introduce yourself in one sentence")
+        return {"status": "ok", "response": result[:500]}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -156,7 +203,8 @@ class ConnectionManager:
         self.active_connections.append(websocket)
     
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
     
     async def send_message(self, message: dict, websocket: WebSocket):
         await websocket.send_json(message)
@@ -201,8 +249,15 @@ async def websocket_endpoint(websocket: WebSocket):
             
             elif msg_type == "ping":
                 await manager.send_message({"type": "pong"}, websocket)
+            
+            elif msg_type == "health":
+                provider_mgr = get_provider_manager()
+                health = await provider_mgr.check_all_health()
+                await manager.send_message({"type": "health", "data": health}, websocket)
     
     except WebSocketDisconnect:
+        manager.disconnect(websocket)
+    except Exception as e:
         manager.disconnect(websocket)
 
 
