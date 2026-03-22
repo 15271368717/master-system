@@ -647,7 +647,24 @@ export default function App() {
               </div>
             ))}
           </div>
+        
+        {/* Decision AI Selector */}
+        <div className="decision-ai-section">
+          <div className="section-title">
+            <Sparkles size={12} />
+            决策AI
+          </div>
+          <select 
+            className="decision-select"
+            value={decisionAI}
+            onChange={(e) => setDecisionAI(e.target.value)}
+          >
+            {agents.filter(a => a.enabled).map(agent => (
+              <option key={agent.id} value={agent.id}>{agent.name}</option>
+            ))}
+          </select>
         </div>
+</div>
         
         <div className="collab-mode-section">
           <div className="mode-header" onClick={() => setCollabModeExpanded(!collabModeExpanded)}>
@@ -681,13 +698,104 @@ export default function App() {
           </AnimatePresence>
         </div>
         
-        <div className="agents-section">
+        
+        {/* View Toggle */}
+        <div className="view-toggle">
+          <button 
+            className={`view-btn ${rightPanelView === 'overview' ? 'active' : ''}`}
+            onClick={() => setRightPanelView('overview')}
+          >
+            资源概览
+          </button>
+          <button 
+            className={`view-btn ${rightPanelView === 'results' ? 'active' : ''}`}
+            onClick={() => setRightPanelView('results')}
+          >
+            评价结果
+          </button>
+        </div>
+        
+        {/* Results View */}
+        {rightPanelView === 'results' && messages.filter(m => m.role === 'jury').length > 0 && (
+          <div className="results-section">
+            {messages.filter(m => m.role === 'jury').slice(-1)[0]?.subTasks?.map(task => {
+              const agent = agents.find(a => a.id === task.targetAgent)
+              return (
+                <div key={task.id} className="result-card">
+                  <div className="result-header">
+                    <span className="result-agent">{agent?.name}</span>
+                    <span className={`result-score ${task.score >= 85 ? 'score-high' : task.score >= 70 ? 'score-mid' : 'score-low'}`}>
+                      {task.score}
+                    </span>
+                  </div>
+                  <div className="result-metrics">
+                    <div className="metric-item">
+                      <div className="metric-label">质量</div>
+                      <div className="metric-value">{task.score - 5}</div>
+                    </div>
+                    <div className="metric-item">
+                      <div className="metric-label">相关性</div>
+                      <div className="metric-value">{task.score - 8}</div>
+                    </div>
+                    <div className="metric-item">
+                      <div className="metric-label">创意</div>
+                      <div className="metric-value">{task.score - 12}</div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+<div className="agents-section"
+        
+        {/* Jury Configuration */}
+        {collaborationMode === 'jury' && (
+          <div className="jury-config-section">
+            <div className="section-title">
+              <Sparkles size={12} />
+              评审团配置
+            </div>
+            <div className="jury-agents">
+              {agents.filter(a => a.enabled).map(agent => (
+                <div 
+                  key={agent.id}
+                  className={`jury-agent-chip ${juryAgents.includes(agent.id) ? 'selected' : ''}`}
+                  onClick={() => {
+                    if (juryAgents.includes(agent.id)) {
+                      if (juryAgents.length > 1) {
+                        setJuryAgents(juryAgents.filter(id => id !== agent.id))
+                      }
+                    } else {
+                      setJuryAgents([...juryAgents, agent.id])
+                    }
+                  }}
+                >
+                  {agent.name}
+                </div>
+              ))}
+            </div>
+            <textarea
+              className="criteria-textarea"
+              placeholder="自定义评审标准..."
+              value={customCriteria}
+              onChange={(e) => setCustomCriteria(e.target.value)}
+              rows={3}
+            />
+          </div>
+        )}
+>
           <div className="agents-header">
             <div className="agents-title"><Zap size={12} />智能节点</div>
             <span className="agents-count">{onlineCount} 在线</span>
           </div>
           
-          <div className="agents-list">
+                  <button className="add-agent-btn" onClick={() => setShowAddModal(true)}>
+          <Zap size={14} />
+          添加AI节点
+        </button>
+        
+<div className="agents-list">
             {agents.map(agent => (
               <motion.div key={agent.id} layout className={`agent-card ${agent.enabled ? 'enabled' : ''}`}>
                 <div className="agent-card-header">
@@ -696,7 +804,12 @@ export default function App() {
                     <button className={`fold-btn ${expandedAgents.has(agent.id) ? 'expanded' : ''}`} onClick={() => toggleAgentDetails(agent.id)}><ChevronDown size={14}/></button>
                   </div>
                   
-                  <div className="agent-info">
+                                    <button className="agent-delete-btn" onClick={() => {
+                    setAgents(agents.filter(a => a.id !== agent.id))
+                  }}>
+                    <XCircle size={14} />
+                  </button>
+<div className="agent-info">
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                       <span className="agent-name">{agent.name}</span>
                       <span className={`agent-task-badge ${agent.taskCount === 0 ? 'idle' : 'busy'}`}>
