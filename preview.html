@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>M.A.S.T.E.R. System - 界面预览</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Segoe UI', system-ui, sans-serif; 
+      background: linear-gradient(135deg, #0a0a0f 0%, #12121a 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container { max-width: 1400px; margin: 0 auto; }
+    h1 { 
+      text-align: center; 
+      color: #818cf8; 
+      margin-bottom: 30px;
+      font-size: 2.5em;
+    }
+    .mockup {
+      background: #12121a;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+      border: 1px solid #27272a;
+    }
+    .header {
+      background: #12121a;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #27272a;
+    }
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #818cf8, #a78bfa, #f472b6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .header-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #a1a1aa;
+      font-size: 13px;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    .main-grid {
+      display: grid;
+      grid-template-columns: 280px 1fr 340px;
+      min-height: 600px;
+    }
+    .panel {
+      background: #12121a;
+      border-right: 1px solid #27272a;
+    }
+    .panel:last-child { border-right: none; }
+    .panel-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid #27272a;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #71717a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .panel-content { padding: 16px; }
+    
+    /* Left Panel */
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #71717a;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .history-item {
+      padding: 12px 14px;
+      background: #1e1e2a;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .history-item:hover { background: #272732; }
+    .history-item-title { font-size: 13px; color: #e4e4e7; margin-bottom: 4px; }
+    .history-item-time { font-size: 11px; color: #71717a; }
+    .empty-text { 
+      color: #71717a; 
+      font-size: 13px; 
+      text-align: center; 
+      padding: 30px 0;
+    }
+    
+    /* Center Panel */
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+    }
+    .chat-messages {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    .empty-state { text-align: center; }
+    .empty-icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-title { font-size: 18px; color: #e4e4e7; margin-bottom: 8px; }
+    .empty-desc { font-size: 13px; color: #71717a; line-height: 1.6; }
+    .badge {
+      margin-left: auto;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 10px;
+      background: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .chat-input-area {
+      padding: 16px 20px;
+      border-top: 1px solid #27272a;
+    }
+    .input-wrapper {
+      display: flex;
+      gap: 12px;
+      background: #1e1e2a;
+      border-radius: 12px;
+      padding: 8px;
+    }
+    .chat-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #e4e4e7;
+      font-size: 14px;
+      padding: 8px 12px;
+      resize: none;
+      outline: none;
+      font-family: inherit;
+    }
+    .chat-input::placeholder { color: #52525b; }
+    .send-button {
+      background: #6366f1;
+      color: white;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s;
+    }
+    .send-button:hover { background: #818cf8; }
+    
+    /* Right Panel */
+    .resource-section { padding: 16px; border-bottom: 1px solid #27272a; }
+    .resource-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .donut-chart {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 16px;
+      position: relative;
+    }
+    .donut-chart svg { transform: rotate(-90deg); }
+    .donut-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+    .donut-value { font-size: 24px; font-weight: 700; color: #e4e4e7; }
+    .donut-label { font-size: 10px; color: #71717a; }
+    .resource-legend { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: #a1a1aa;
+    }
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    
+    .mode-section {
+      padding: 16px;
+      border-bottom: 1px solid #27272a;
+    }
+    .mode-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .mode-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #71717a;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .mode-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid #27272a;
+      background: transparent;
+      color: #71717a;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+    .mode-btn.active {
+      background: #6366f1;
+      border-color: #6366f1;
+      color: white;
+    }
+    .mode-btn:hover:not(.active) { border-color: #3f3f46; color: #a1a1aa; }
+    
+    .agents-section { padding: 16px; }
+    .agents-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .agents-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #71717a;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .agents-count { font-size: 11px; color: #10b981; }
+    
+    .agent-card {
+      background: #1e1e2a;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 10px;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+    .agent-card.enabled { border-color: #27272a; }
+    .agent-card-header {
+      display: flex;
+      gap: 12px;
+    }
+    .toggle-switch {
+      width: 36px;
+      height: 20px;
+      background: #27272a;
+      border-radius: 10px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toggle-switch.active { background: #10b981; }
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      background: white;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.2s;
+    }
+    .toggle-switch.active::after { transform: translateX(16px); }
+    .agent-info { flex: 1; }
+    .agent-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: #e4e4e7;
+    }
+    .agent-provider {
+      font-size: 11px;
+      color: #71717a;
+      margin-top: 2px;
+    }
+    .agent-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      margin-left: 8px;
+    }
+    .badge-idle { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+    
+    .agent-strengths {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+    }
+    .strength-tag {
+      padding: 4px 10px;
+      background: #27272a;
+      border-radius: 12px;
+      font-size: 10px;
+      color: #a1a1aa;
+    }
+    
+    .url-link {
+      text-align: center;
+      margin-top: 20px;
+      padding: 16px;
+      background: #1e1e2a;
+      border-radius: 12px;
+    }
+    .url-link a {
+      color: #818cf8;
+      font-size: 18px;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .url-link a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>✨ M.A.S.T.E.R. System 界面预览</h1>
+    
+    <div class="mockup">
+      <div class="header">
+        <div class="header-title">
+          <span>⚡</span>
+          <span>M.A.S.T.E.R. System</span>
+        </div>
+        <div class="header-status">
+          <span class="status-dot"></span>
+          <span>决策中枢: Gemini-3-Pro</span>
+        </div>
+      </div>
+      
+      <div class="main-grid">
+        <!-- Left Panel -->
+        <div class="panel">
+          <div class="panel-header">
+            <span>📂</span> 控制面板
+          </div>
+          <div class="panel-content">
+            <div class="section-title">📜 历史记录</div>
+            <div class="empty-text">暂无历史记录</div>
+            
+            <div class="section-title" style="margin-top: 24px;">▶ 任务分区</div>
+            <div class="empty-text">暂无运行中的任务</div>
+            
+            <div class="section-title" style="margin-top: 24px;">📁 数据管理</div>
+          </div>
+        </div>
+        
+        <!-- Center Panel -->
+        <div class="panel chat-container">
+          <div class="panel-header">
+            <span>💬</span> 核心交互区
+            <span class="badge">⚡ 标准分工</span>
+          </div>
+          <div class="chat-messages">
+            <div class="empty-state">
+              <div class="empty-icon">🎯</div>
+              <div class="empty-title">欢迎使用 M.A.S.T.E.R.</div>
+              <div class="empty-desc">
+                决策中枢将指令拆分给各AI节点执行<br>
+                评审团在后台评价AI的输出结果
+              </div>
+            </div>
+          </div>
+          <div class="chat-input-area">
+            <div class="input-wrapper">
+              <textarea class="chat-input" placeholder="输入指令，决策AI将自动拆分并分发..." rows="1"></textarea>
+              <button class="send-button">发送 →</button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Right Panel -->
+        <div class="panel">
+          <div class="panel-header">
+            <span>🔧</span> 智能功能面板
+          </div>
+          
+          <div class="resource-section">
+            <div class="resource-header">
+              <div class="section-title" style="margin: 0;">📊 资源概览</div>
+              <span style="font-size: 11px; color: #71717a;">4 / 4 在线</span>
+            </div>
+            <div class="donut-chart">
+              <svg viewBox="0 0 100 100" width="120" height="120">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#5E5CF5" stroke-width="12" stroke-dasharray="125.6 251.2" stroke-dashoffset="0"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#FF6B35" stroke-width="12" stroke-dasharray="62.8 251.2" stroke-dashoffset="-125.6"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#00BFFF" stroke-width="12" stroke-dasharray="31.4 251.2" stroke-dashoffset="-188.4"/>
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#FF69B4" stroke-width="12" stroke-dasharray="31.4 251.2" stroke-dashoffset="-219.8"/>
+              </svg>
+              <div class="donut-center">
+                <div class="donut-value">0</div>
+                <div class="donut-label">Tasks</div>
+              </div>
+            </div>
+            <div class="resource-legend">
+              <div class="legend-item"><span class="legend-dot" style="background:#5E5CF5"></span>DeepSeek</div>
+              <div class="legend-item"><span class="legend-dot" style="background:#FF6B35"></span>豆包</div>
+              <div class="legend-item"><span class="legend-dot" style="background:#00BFFF"></span>Kimi</div>
+              <div class="legend-item"><span class="legend-dot" style="background:#FF69B4"></span>通义千问</div>
+            </div>
+          </div>
+          
+          <div class="mode-section">
+            <div class="mode-header">
+              <div class="mode-title">🔀 协作模式</div>
+            </div>
+            <div class="mode-buttons">
+              <button class="mode-btn active">标准分工</button>
+              <button class="mode-btn">讨论共识</button>
+              <button class="mode-btn">评审团</button>
+            </div>
+          </div>
+          
+          <div class="agents-section">
+            <div class="agents-header">
+              <div class="agents-title">⚡ 智能节点</div>
+              <span class="agents-count">4 在线</span>
+            </div>
+            
+            <div class="agent-card enabled">
+              <div class="agent-card-header">
+                <div class="toggle-switch active"></div>
+                <div class="agent-info">
+                  <div class="agent-name">🟣 DeepSeek-V3 <span class="agent-badge badge-idle">空闲</span></div>
+                  <div class="agent-provider">深度求索 · DeepSeek-V3</div>
+                </div>
+              </div>
+              <div class="agent-strengths">
+                <span class="strength-tag">逻辑推理</span>
+                <span class="strength-tag">代码生成</span>
+                <span class="strength-tag">数学计算</span>
+              </div>
+            </div>
+            
+            <div class="agent-card enabled">
+              <div class="agent-card-header">
+                <div class="toggle-switch active"></div>
+                <div class="agent-info">
+                  <div class="agent-name">🟠 豆包 <span class="agent-badge badge-idle">空闲</span></div>
+                  <div class="agent-provider">字节跳动 · Doubao-Pro</div>
+                </div>
+              </div>
+              <div class="agent-strengths">
+                <span class="strength-tag">创意写作</span>
+                <span class="strength-tag">文案优化</span>
+                <span class="strength-tag">内容润色</span>
+              </div>
+            </div>
+            
+            <div class="agent-card enabled">
+              <div class="agent-card-header">
+                <div class="toggle-switch active"></div>
+                <div class="agent-info">
+                  <div class="agent-name">🔵 Kimi <span class="agent-badge badge-idle">空闲</span></div>
+                  <div class="agent-provider">Moonshot · moonshot-v1</div>
+                </div>
+              </div>
+              <div class="agent-strengths">
+                <span class="strength-tag">长文本</span>
+                <span class="strength-tag">文档阅读</span>
+                <span class="strength-tag">研究分析</span>
+              </div>
+            </div>
+            
+            <div class="agent-card enabled">
+              <div class="agent-card-header">
+                <div class="toggle-switch active"></div>
+                <div class="agent-info">
+                  <div class="agent-name">🔴 通义千问 <span class="agent-badge badge-idle">空闲</span></div>
+                  <div class="agent-provider">阿里云 · qwen-turbo</div>
+                </div>
+              </div>
+              <div class="agent-strengths">
+                <span class="strength-tag">综合问答</span>
+                <span class="strength-tag">多模态</span>
+                <span class="strength-tag">指令跟随</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="url-link">
+      <div style="color: #71717a; margin-bottom: 8px;">实际界面访问地址：</div>
+      <a href="http://localhost:3000" target="_blank">http://localhost:3000</a>
+    </div>
+  </div>
+</body>
+</html>

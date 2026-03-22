@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
-// ==================== 类型定义 ====================
+// ==================== Types ====================
 
 interface Agent {
   id: string
@@ -50,20 +50,20 @@ interface TaskItem {
   status: 'running' | 'completed' | 'pending'
 }
 
-// ==================== 常量 ====================
+// ==================== Constants ====================
 
 const AGENTS: Agent[] = [
   { 
     id: 'deepseek-v3', 
     name: 'DeepSeek-V3', 
-    provider: '深度求索', 
+    provider: 'DeepSeek', 
     model: 'DeepSeek-V3',
-    strengths: ['逻辑推理', '数学计算', '代码生成', '结构化分析'],
+    strengths: ['Logic', 'Math', 'Code', 'Analysis'],
     radar: [
-      { category: '逻辑推理', value: 95 },
-      { category: '创意写作', value: 60 },
-      { category: '长文本', value: 70 },
-      { category: '综合问答', value: 80 }
+      { category: 'Logic', value: 95 },
+      { category: 'Writing', value: 60 },
+      { category: 'Long Text', value: 70 },
+      { category: 'QA', value: 80 }
     ],
     enabled: true, 
     taskCount: 0, 
@@ -71,15 +71,15 @@ const AGENTS: Agent[] = [
   },
   { 
     id: 'doubao', 
-    name: '豆包', 
-    provider: '字节跳动', 
+    name: 'Doubao', 
+    provider: 'ByteDance', 
     model: 'Doubao-Pro',
-    strengths: ['创意写作', '文案优化', '内容润色', '灵感激发'],
+    strengths: ['Creative Writing', 'Copywriting', 'Content', 'Inspiration'],
     radar: [
-      { category: '逻辑推理', value: 55 },
-      { category: '创意写作', value: 95 },
-      { category: '长文本', value: 75 },
-      { category: '综合问答', value: 70 }
+      { category: 'Logic', value: 55 },
+      { category: 'Writing', value: 95 },
+      { category: 'Long Text', value: 65 },
+      { category: 'QA', value: 75 }
     ],
     enabled: true, 
     taskCount: 0, 
@@ -88,14 +88,14 @@ const AGENTS: Agent[] = [
   { 
     id: 'kimi', 
     name: 'Kimi', 
-    provider: '月之暗面', 
-    model: 'Kimi-S1',
-    strengths: ['长文本分析', '文档理解', '深度阅读', '信息提取'],
+    provider: 'Moonshot', 
+    model: 'moonshot-v1',
+    strengths: ['Long Text', 'Document', 'Research', 'Analysis'],
     radar: [
-      { category: '逻辑推理', value: 75 },
-      { category: '创意写作', value: 65 },
-      { category: '长文本', value: 98 },
-      { category: '综合问答', value: 85 }
+      { category: 'Logic', value: 70 },
+      { category: 'Writing', value: 75 },
+      { category: 'Long Text', value: 98 },
+      { category: 'QA', value: 85 }
     ],
     enabled: true, 
     taskCount: 0, 
@@ -103,20 +103,20 @@ const AGENTS: Agent[] = [
   },
   { 
     id: 'tongyi', 
-    name: '通义千问', 
-    provider: '阿里云', 
-    model: 'Qwen-Max',
-    strengths: ['综合问答', '知识广博', '多语言', '技术解释'],
+    name: 'Tongyi Qwen', 
+    provider: 'Alibaba', 
+    model: 'qwen-turbo',
+    strengths: ['General QA', 'Multi-modal', 'Instructions'],
     radar: [
-      { category: '逻辑推理', value: 80 },
-      { category: '创意写作', value: 75 },
-      { category: '长文本', value: 85 },
-      { category: '综合问答', value: 92 }
+      { category: 'Logic', value: 80 },
+      { category: 'Writing', value: 70 },
+      { category: 'Long Text', value: 65 },
+      { category: 'QA', value: 90 }
     ],
     enabled: true, 
     taskCount: 0, 
     status: 'idle' 
-  }
+  },
 ]
 
 const AGENT_COLORS: Record<string, string> = {
@@ -128,7 +128,7 @@ const AGENT_COLORS: Record<string, string> = {
 
 type CollaborationMode = 'standard' | 'consensus' | 'jury'
 
-// ==================== 辅助组件 ====================
+// ==================== Components ====================
 
 function DonutChart({ agents }: { agents: Agent[] }) {
   const enabledAgents = agents.filter(a => a.enabled)
@@ -179,137 +179,150 @@ function DonutChart({ agents }: { agents: Agent[] }) {
   )
 }
 
-function RadarChart({ data, color = '#6366f1' }: { data: { category: string; value: number }[], color?: string }) {
-  const size = 100
+function RadarChart({ data, color }: { data: { category: string; value: number }[], color: string }) {
+  const size = 80
   const center = size / 2
-  const maxRadius = 35
-  
-  const angleStep = (2 * Math.PI) / data.length
+  const radius = 30
+  const levels = 4
   
   const points = data.map((d, i) => {
-    const angle = i * angleStep - Math.PI / 2
-    const radius = (d.value / 100) * maxRadius
+    const angle = (Math.PI * 2 * i) / data.length - Math.PI / 2
+    const r = (d.value / 100) * radius
     return {
-      x: center + radius * Math.cos(angle),
-      y: center + radius * Math.sin(angle)
+      x: center + r * Math.cos(angle),
+      y: center + r * Math.sin(angle)
     }
   })
   
-  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ') + ' Z'
+  const polygonPoints = points.map(p => `${p.x},${p.y}`).join(' ')
   
   return (
-    <svg viewBox={`0 0 ${size} ${size}`} className="radar-chart">
-      {[25, 50, 75, 100].map(level => (
-        <circle
-          key={level}
-          cx={center}
-          cy={center}
-          r={(level / 100) * maxRadius}
-          fill="none"
-          stroke="rgba(255,255,255,0.05)"
-          strokeWidth="1"
+    <div className="radar-chart">
+      <svg viewBox={`0 0 ${size} ${size}`}>
+        {[1, 2, 3, 4].map(level => (
+          <circle
+            key={level}
+            cx={center}
+            cy={center}
+            r={(radius / levels) * level}
+            fill="none"
+            stroke="#27272a"
+            strokeWidth="1"
+          />
+        ))}
+        <polygon
+          points={polygonPoints}
+          fill={`${color}20`}
+          stroke={color}
+          strokeWidth="2"
         />
-      ))}
-      <path
-        d={pathD}
-        fill={`${color}20`}
-        stroke={color}
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-      {points.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r="3" fill={color} />
-      ))}
-    </svg>
+        {points.map((p, i) => (
+          <line
+            key={i}
+            x1={center}
+            y1={center}
+            x2={p.x}
+            y2={p.y}
+            stroke="#27272a"
+            strokeWidth="1"
+          />
+        ))}
+        {points.map((p, i) => (
+          <circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r="3"
+            fill={color}
+          />
+        ))}
+      </svg>
+    </div>
   )
 }
 
-// ==================== 主应用 ====================
+// ==================== Main App ====================
 
 export default function App() {
-  const [agents, setAgents] = useState<Agent[]>(AGENTS)
-  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [messages, setMessages] = useState<Message[]>([])
+  const [agents, setAgents] = useState<Agent[]>(AGENTS)
   const [history, setHistory] = useState<HistoryItem[]>([])
-  const [activeTasks, setActiveTasks] = useState<TaskItem[]>([])
-  
-  const [collabModeExpanded, setCollabModeExpanded] = useState(false)
   const [collaborationMode, setCollaborationMode] = useState<CollaborationMode>('standard')
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set())
-  
+  const [collabModeExpanded, setCollabModeExpanded] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   
-  const totalTasks = agents.reduce((sum, a) => sum + a.taskCount, 0)
+  const onlineCount = agents.filter(a => a.enabled).length
   const enabledAgents = agents.filter(a => a.enabled)
-  const onlineCount = enabledAgents.filter(a => a.status !== 'offline').length
-  
+
+  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // 决策AI拆分指令为子任务
+  // Decision AI splits task into subtasks
   const splitTask = useCallback((userInput: string): SubTask[] => {
-    // 根据输入内容智能拆分
     const subTasks: SubTask[] = []
     const inputLower = userInput.toLowerCase()
     
-    // 逻辑分析任务
-    if (inputLower.includes('分析') || inputLower.includes('逻辑') || inputLower.includes('计算') || inputLower.includes('代码')) {
+    // Logic analysis task
+    if (inputLower.includes('analyze') || inputLower.includes('logic') || inputLower.includes('calculate') || inputLower.includes('code')) {
       subTasks.push({
         id: `task-${Date.now()}-1`,
         targetAgent: 'deepseek-v3',
-        instruction: `逻辑分析: ${userInput}`
+        instruction: `Logic Analysis: ${userInput}`
       })
     }
     
-    // 创意写作任务
-    if (inputLower.includes('写') || inputLower.includes('创作') || inputLower.includes('文案') || inputLower.includes('诗')) {
+    // Creative writing task
+    if (inputLower.includes('write') || inputLower.includes('create') || inputLower.includes('poem') || inputLower.includes('story')) {
       subTasks.push({
         id: `task-${Date.now()}-2`,
         targetAgent: 'doubao',
-        instruction: `创意写作: ${userInput}`
+        instruction: `Creative Writing: ${userInput}`
       })
     }
     
-    // 长文本任务
-    if (inputLower.includes('长') || inputLower.includes('文档') || inputLower.includes('阅读') || userInput.length > 200) {
+    // Long text task
+    if (inputLower.includes('long') || inputLower.includes('document') || inputLower.includes('read') || userInput.length > 200) {
       subTasks.push({
         id: `task-${Date.now()}-3`,
         targetAgent: 'kimi',
-        instruction: `长文本处理: ${userInput}`
+        instruction: `Long Text Processing: ${userInput}`
       })
     }
     
-    // 综合问答（默认添加）
+    // General QA (default)
     subTasks.push({
       id: `task-${Date.now()}-4`,
       targetAgent: 'tongyi',
-      instruction: `综合回答: ${userInput}`
+      instruction: `General Answer: ${userInput}`
     })
     
-    // 去重
+    // Deduplicate
     return subTasks.filter((task, index, self) => 
       index === self.findIndex(t => t.targetAgent === task.targetAgent)
     )
   }, [])
 
-  // 模拟AI执行子任务
+  // Simulate AI executing subtasks
   const executeSubTask = async (subTask: SubTask): Promise<SubTask> => {
     await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 500))
     
     const agent = agents.find(a => a.id === subTask.targetAgent)
     const results: Record<string, string> = {
-      'deepseek-v3': `【逻辑分析结果】\n\n针对"${subTask.instruction.replace('逻辑分析: ', '')}"的分析：\n\n1. 问题核心识别\n2. 逻辑结构拆解\n3. 关键要素提取\n4. 结论推导\n\n分析完成。`,
-      'doubao': `【创意内容】\n\n${subTask.instruction.includes('诗') ? '春风拂面，万物苏醒\n绿意盎然，花开满地\n阳光温暖，鸟语花香\n人间四月，诗意盎然' : '【创意写作完成】\n\n根据您的要求，已完成创意内容生成。'}`,
-      'kimi': `【长文本理解】\n\n已理解您的输入内容：\n"${subTask.instruction.replace('长文本处理: ', '').slice(0, 50)}..."\n\n提取关键信息点，进行深度理解与分析。`,
-      'tongyi': `【综合回答】\n\n综合各维度信息，为您提供完整回答：\n\n${subTask.instruction.replace('综合回答: ', '')}\n\n以上是综合处理结果。`
+      'deepseek-v3': `【Logic Analysis Result】\n\nAnalysis for "${subTask.instruction.replace('Logic Analysis: ', '')}":\n\n1. Core Problem Identification\n2. Logic Structure Breakdown\n3. Key Elements Extraction\n4. Conclusion Derivation\n\nAnalysis Complete.`,
+      'doubao': `【Creative Content】\n\n${subTask.instruction.includes('poem') ? 'Spring breeze sweeps, all things awaken\nGreen everywhere, flowers bloom full\nWarm sunshine, birds singing\nApril in the world, poetic and flourish' : '【Creative Writing Complete】\n\nBased on your requirements, creative content has been generated.'}`,
+      'kimi': `【Long Text Understanding】\n\nInput content understood: "${subTask.instruction.replace('Long Text Processing: ', '').slice(0, 50)}..."\n\nExtracting key information points for deep understanding and analysis.`,
+      'tongyi': `【General Answer】\n\nSynthesizing information from all dimensions to provide you with a complete answer:\n\n${subTask.instruction.replace('General Answer: ', '')}\n\nAbove is the comprehensive processing result.`
     }
     
     return {
       ...subTask,
-      result: results[subTask.targetAgent] || '处理完成',
-      score: 70 + Math.floor(Math.random() * 25) // 70-95分
+      result: results[subTask.targetAgent] || 'Processing complete',
+      score: 70 + Math.floor(Math.random() * 25)
     }
   }
 
@@ -317,99 +330,94 @@ export default function App() {
     if (!input.trim() || loading) return
     
     const userInput = input.trim()
+    setInput('')
+    setLoading(true)
     
-    // 用户消息
     const userMsg: Message = {
-      id: `msg-${Date.now()}-user`,
+      id: `msg-${Date.now()}`,
       role: 'user',
       content: userInput,
       timestamp: new Date()
     }
+    setMessages(prev => [...prev, userMsg])
     
-    // 决策AI拆分指令的协议日志
+    // Decision AI splits task
     const subTasks = splitTask(userInput)
-    const routingAgents = subTasks.map(t => agents.find(a => a.id === t.targetAgent)?.name).filter(Boolean)
+    const routingAgents = subTasks.map(t => agents.find(a => a.id === t.targetAgent)?.name || t.targetAgent)
     
     const protocolMsg: Message = {
       id: `msg-${Date.now()}-protocol`,
       role: 'protocol',
-      content: `[DECISION_AI]: 指令拆分完成\n[SYS_ROUTING]: "${userInput.slice(0, 40)}${userInput.length > 40 ? '...' : ''}" -> [${routingAgents.join(', ')}]`,
+      content: `[DECISION_AI]: Task split complete\n[SYS_ROUTING]: "${userInput.slice(0, 40)}${userInput.length > 40 ? '...' : ''}" -> [${routingAgents.join(', ')}]`,
       timestamp: new Date(),
-      subTasks: subTasks
+      subTasks
     }
+    setMessages(prev => [...prev, protocolMsg])
     
-    setMessages(prev => [...prev, userMsg, protocolMsg])
-    setInput('')
-    setLoading(true)
+    // Update agent status
+    setAgents(prev => prev.map(a => {
+      const isAssigned = subTasks.some(t => t.targetAgent === a.id)
+      return isAssigned ? { ...a, status: 'busy' as const } : a
+    }))
     
-    // 更新AI状态为忙碌
-    setAgents(prev => prev.map(a => 
-      subTasks.some(t => t.targetAgent === a.id) ? { ...a, taskCount: a.taskCount + 1, status: 'busy' as const } : a
-    ))
+    // Execute all subtasks in parallel
+    const completedTasks = await Promise.all(subTasks.map(executeSubTask))
     
-    // 执行所有子任务
-    const executedTasks: SubTask[] = []
-    for (const subTask of subTasks) {
-      const result = await executeSubTask(subTask)
-      executedTasks.push(result)
+    // Update task counts
+    setAgents(prev => prev.map(a => {
+      const taskCount = completedTasks.filter(t => t.targetAgent === a.id).length
+      return taskCount > 0 ? { ...a, taskCount: a.taskCount + taskCount, status: 'idle' as const } : a
+    }))
+    
+    // Update protocol message with results
+    const updatedProtocolMsg: Message = {
+      ...protocolMsg,
+      subTasks: completedTasks
+    }
+    setMessages(prev => prev.map(m => m.id === protocolMsg.id ? updatedProtocolMsg : m))
+    
+    // Jury evaluation
+    if (collaborationMode === 'jury') {
+      const scores = completedTasks.map(t => t.score || 80)
+      const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length
       
-      // 实时更新该任务的执行状态
-      setMessages(prev => prev.map(m => 
-        m.id === protocolMsg.id 
-          ? { ...m, subTasks: executedTasks }
-          : m
-      ))
+      const juryMsg: Message = {
+        id: `msg-${Date.now()}-jury`,
+        role: 'jury',
+        content: `【JURY EVALUATION】\n\nAverage Score: ${avgScore.toFixed(1)}\n\n${completedTasks.map(t => `${agents.find(a => a.id === t.targetAgent)?.name}: ${t.score}`).join('\n')}`,
+        timestamp: new Date(),
+        finalScore: avgScore
+      }
+      setMessages(prev => [...prev, juryMsg])
     }
     
-    // 模拟评审团评价结果
-    await new Promise(resolve => setTimeout(resolve, 600))
-    
-    const avgScore = executedTasks.reduce((sum, t) => sum + (t.score || 0), 0) / executedTasks.length
-    const passThreshold = 75
-    const passed = avgScore >= passThreshold
-    
-    // 评审团消息
-    const juryMsg: Message = {
-      id: `msg-${Date.now()}-jury`,
-      role: 'jury',
-      content: `【评审团评价结果】\n\n${executedTasks.map(t => {
-        const agentName = agents.find(a => a.id === t.targetAgent)?.name
-        const status = (t.score || 0) >= passThreshold ? '✓ 通过' : '✗ 需优化'
-        return `${agentName}: ${t.score}分 ${status}`
-      }).join('\n')}\n\n平均分: ${avgScore.toFixed(1)}/100\n最终判定: ${passed ? '✓ 采用' : '✗ 重新处理'}`,
-      timestamp: new Date(),
-      subTasks: executedTasks,
-      finalScore: avgScore
-    }
-    
-    // 最终输出结果
-    const systemMsg: Message = {
-      id: `msg-${Date.now()}-system`,
+    // Final output
+    const finalMsg: Message = {
+      id: `msg-${Date.now()}-final`,
       role: 'system',
-      content: `【最终输出】\n\n${executedTasks.map(t => {
-        const agentName = agents.find(a => a.id === t.targetAgent)?.name
-        return `## ${agentName} 的输出\n\n${t.result}`
-      }).join('\n\n---\n\n')}`,
+      content: completedTasks.map(t => {
+        const agentName = agents.find(a => a.id === t.targetAgent)?.name || t.targetAgent
+        return `【${agentName}】\n${t.result}`
+      }).join('\n\n---\n\n'),
       timestamp: new Date(),
-      subTasks: executedTasks,
-      finalScore: avgScore
+      finalScore: completedTasks.reduce((sum, t) => sum + (t.score || 0), 0) / completedTasks.length
     }
+    setMessages(prev => [...prev, finalMsg])
     
-    setMessages(prev => [...prev, juryMsg, systemMsg])
     setLoading(false)
     
-    // 重置AI状态
+    // Reset agent status
     setAgents(prev => prev.map(a => ({ ...a, status: 'idle' as const })))
     
-    // 添加到历史
+    // Add to history
     setHistory(prev => [{
       id: userMsg.id,
       title: userInput.slice(0, 25) + (userInput.length > 25 ? '...' : ''),
-      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
       preview: userInput.slice(0, 40)
     }, ...prev])
     
-  }, [input, loading, agents, splitTask])
+  }, [input, loading, agents, splitTask, collaborationMode])
   
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -435,7 +443,7 @@ export default function App() {
 
   return (
     <div className="app-container">
-      {/* 头部 */}
+      {/* Header */}
       <header className="header">
         <div className="header-title">
           <Sparkles size={24} />
@@ -444,30 +452,30 @@ export default function App() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div className="header-status">
             <span className="status-dot"></span>
-            <span>决策中枢: Gemini-3-Pro</span>
+            <span>Decision AI: Gemini-3-Pro</span>
           </div>
           <button className="settings-btn" disabled>
             <Settings size={14} style={{ marginRight: 6 }} />
-            系统设置
+            Settings
           </button>
         </div>
       </header>
 
-      {/* 左侧栏 */}
+      {/* Left Panel */}
       <aside className="panel">
         <div className="panel-header">
           <LayoutGrid size={14} />
-          控制面板
+          Control Panel
         </div>
         
         <div className="history-section">
           <div className="section-title">
             <History size={12} />
-            历史记录
+            History
           </div>
           {history.length === 0 ? (
             <div style={{ color: 'var(--color-text-muted)', fontSize: '13px', textAlign: 'center', padding: '20px 0' }}>
-              暂无历史记录
+              No history yet
             </div>
           ) : (
             history.map(item => (
@@ -482,11 +490,11 @@ export default function App() {
         <div className="task-section">
           <div className="section-title">
             <Play size={12} />
-            任务分区
+            Task Partition
           </div>
           {messages.filter(m => m.role === 'protocol' && m.subTasks?.some(t => !t.result)).length === 0 ? (
             <div style={{ color: 'var(--color-text-muted)', fontSize: '13px', textAlign: 'center', padding: '20px 0' }}>
-              暂无运行中的任务
+              No running tasks
             </div>
           ) : (
             messages.filter(m => m.role === 'protocol').slice(-1)[0]?.subTasks?.map(task => (
@@ -494,7 +502,7 @@ export default function App() {
                 <div className={task.result ? 'task-spinner' : ''} style={task.result ? {} : { background: '#10b981', borderRadius: '50%', width: 16, height: 16 }}></div>
                 <div className="task-info">
                   <div className="task-name">{agents.find(a => a.id === task.targetAgent)?.name}</div>
-                  <div className="task-status">{task.result ? '已完成' : '处理中...'}</div>
+                  <div className="task-status">{task.result ? 'Completed' : 'Processing...'}</div>
                 </div>
               </div>
             ))
@@ -504,19 +512,19 @@ export default function App() {
         <div className="panel-content">
           <div className="section-title" style={{ marginTop: 'auto', paddingTop: '20px', opacity: 0.5 }}>
             <Folder size={12} />
-            数据管理
+            Data Management
           </div>
         </div>
       </aside>
 
-      {/* 中间栏 */}
+      {/* Center Panel */}
       <main className="panel chat-container">
         <div className="panel-header">
           <MessageSquare size={14} />
-          核心交互区
+          Core Interaction
           <span className="badge badge-jury">
             <Sparkles size={10} />
-            {collaborationMode === 'jury' ? '评审团' : collaborationMode === 'consensus' ? '讨论共识' : '标准分工'}
+            {collaborationMode === 'jury' ? 'Jury' : collaborationMode === 'consensus' ? 'Consensus' : 'Standard'}
           </span>
         </div>
         
@@ -524,10 +532,10 @@ export default function App() {
           {messages.length === 0 && (
             <div className="empty-state">
               <div className="empty-icon">🎯</div>
-              <p style={{ fontSize: '18px', marginBottom: '8px' }}>欢迎使用 M.A.S.T.E.R.</p>
+              <p style={{ fontSize: '18px', marginBottom: '8px' }}>Welcome to M.A.S.T.E.R.</p>
               <p style={{ fontSize: '13px', color: 'var(--color-text-muted)' }}>
-                决策中枢将指令拆分给各AI节点执行<br/>
-                评审团在后台评价AI的输出结果
+                Decision AI splits tasks to AI nodes<br/>
+                Jury evaluates outputs in background
               </p>
             </div>
           )}
@@ -543,10 +551,10 @@ export default function App() {
               >
                 {msg.role === 'system' && (
                   <div className="message-meta">
-                    🤖 最终输出
+                    🤖 Final Output
                     {msg.finalScore && (
                       <span style={{ marginLeft: 8, color: msg.finalScore >= 75 ? '#10b981' : '#f59e0b' }}>
-                        评分: {msg.finalScore.toFixed(1)}
+                        Score: {msg.finalScore.toFixed(1)}
                       </span>
                     )}
                   </div>
@@ -559,9 +567,9 @@ export default function App() {
                 )}
                 {msg.role === 'jury' && (
                   <div className="message-meta" style={{ color: '#10b981' }}>
-                    ⚖️ 评审团评价结果
+                    ⚖️ Jury Evaluation
                     {msg.finalScore && (
-                      <span style={{ marginLeft: 8 }}>平均分: {msg.finalScore.toFixed(1)}</span>
+                      <span style={{ marginLeft: 8 }}>Avg Score: {msg.finalScore.toFixed(1)}</span>
                     )}
                   </div>
                 )}
@@ -578,7 +586,7 @@ export default function App() {
             >
               <div className="loading-spinner">
                 <div className="spinner"></div>
-                <span>决策AI拆分指令 -&gt; 分发执行 -&gt; 评审团评分中...</span>
+                <span>Decision AI splitting -&gt; Distributing -&gt; Jury evaluating...</span>
               </div>
             </motion.div>
           )}
@@ -590,7 +598,7 @@ export default function App() {
           <div className="input-wrapper">
             <textarea
               className="chat-input"
-              placeholder="输入指令，决策AI将自动拆分并分发..."
+              placeholder="Enter task, Decision AI will auto-split and distribute..."
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -601,19 +609,19 @@ export default function App() {
               disabled={loading || !input.trim()}
             >
               <Send size={16} />
-              发送
+              Send
             </button>
           </div>
         </div>
       </main>
 
-      {/* 右侧栏 */}
+      {/* Right Panel */}
       <aside className="panel">
         <div className="panel-header">
           <div className="right-panel-header" style={{ width: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Cpu size={14} />
-              智能功能面板
+              Smart Panel
             </div>
           </div>
         </div>
@@ -622,10 +630,10 @@ export default function App() {
           <div className="resource-header">
             <div className="resource-title">
               <Activity size={12} />
-              资源概览
+              Task Distribution
             </div>
             <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-              {onlineCount} / {enabledAgents.length} 在线
+              {onlineCount} / {enabledAgents.length} Online
             </span>
           </div>
           
@@ -646,7 +654,7 @@ export default function App() {
           <div className="mode-header" onClick={() => setCollabModeExpanded(!collabModeExpanded)}>
             <div className="mode-title">
               <GitBranch size={12} />
-              协作模式
+              Collaboration Mode
               <span style={{ 
                 marginLeft: 8, 
                 padding: '2px 8px', 
@@ -655,7 +663,7 @@ export default function App() {
                 color: 'var(--color-accent-primary)',
                 fontSize: 10
               }}>
-                {collaborationMode === 'jury' ? '评审团' : collaborationMode === 'consensus' ? '讨论共识' : '标准分工'}
+                {collaborationMode === 'jury' ? 'Jury' : collaborationMode === 'consensus' ? 'Consensus' : 'Standard'}
               </span>
             </div>
             <ChevronDown size={16} style={{ transform: collabModeExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s', color: 'var(--color-text-muted)' }} />
@@ -665,9 +673,9 @@ export default function App() {
             {collabModeExpanded && (
               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="mode-content">
                 <div className="mode-buttons">
-                  <button className={`mode-btn ${collaborationMode === 'standard' ? 'active' : ''}`} onClick={() => setCollaborationMode('standard')}>标准分工</button>
-                  <button className={`mode-btn ${collaborationMode === 'consensus' ? 'active' : ''}`} onClick={() => setCollaborationMode('consensus')}>讨论共识</button>
-                  <button className={`mode-btn ${collaborationMode === 'jury' ? 'active' : ''}`} onClick={() => setCollaborationMode('jury')}>评审团</button>
+                  <button className={`mode-btn ${collaborationMode === 'standard' ? 'active' : ''}`} onClick={() => setCollaborationMode('standard')}>Standard</button>
+                  <button className={`mode-btn ${collaborationMode === 'consensus' ? 'active' : ''}`} onClick={() => setCollaborationMode('consensus')}>Consensus</button>
+                  <button className={`mode-btn ${collaborationMode === 'jury' ? 'active' : ''}`} onClick={() => setCollaborationMode('jury')}>Jury</button>
                 </div>
               </motion.div>
             )}
@@ -676,8 +684,8 @@ export default function App() {
         
         <div className="agents-section">
           <div className="agents-header">
-            <div className="agents-title"><Zap size={12} />智能节点</div>
-            <span className="agents-count">{onlineCount} 在线</span>
+            <div className="agents-title"><Zap size={12} />AI Nodes</div>
+            <span className="agents-count">{onlineCount} Online</span>
           </div>
           
           <div className="agents-list">
@@ -693,7 +701,7 @@ export default function App() {
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                       <span className="agent-name">{agent.name}</span>
                       <span className={`agent-task-badge ${agent.taskCount === 0 ? 'idle' : 'busy'}`}>
-                        {agent.taskCount > 0 ? `${agent.taskCount} 任务` : '空闲'}
+                        {agent.taskCount > 0 ? `${agent.taskCount} Tasks` : 'Idle'}
                       </span>
                     </div>
                     <div className="agent-provider">{agent.provider} · {agent.model}</div>
@@ -704,11 +712,11 @@ export default function App() {
                   {expandedAgents.has(agent.id) && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="agent-details expanded">
                       <div className="detail-row">
-                        <span className="detail-label">状态</span>
-                        <span className={`detail-value ${agent.enabled ? 'online' : 'offline'}`}>{agent.enabled ? '在线' : '离线'}</span>
+                        <span className="detail-label">Status</span>
+                        <span className={`detail-value ${agent.enabled ? 'online' : 'offline'}`}>{agent.enabled ? 'Online' : 'Offline'}</span>
                       </div>
                       <div className="detail-row">
-                        <span className="detail-label">今日任务</span>
+                        <span className="detail-label">Today Tasks</span>
                         <span className="detail-value">{agent.taskCount}</span>
                       </div>
                       <RadarChart data={agent.radar} color={AGENT_COLORS[agent.id]} />
