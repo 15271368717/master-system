@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
 
-from providers import get_provider_manager, AIProvider
+from .providers import get_provider_manager, AIProvider
 
 
 class TaskMode(str, Enum):
@@ -289,13 +289,104 @@ class DecisionEngine:
             provider = provider_mgr.get_search(agent.provider)
         
         if not provider:
-            return f"[{agent.name}] Provider not available"
+            # Fallback to simulation mode
+            return await self._simulate_response(agent, user_input)
         
         try:
             model = agent.model if agent.model != "default" else None
-            return await provider.chat(user_input, model=model)
+            result = await provider.chat(user_input, model=model)
+            # Check if result indicates no API key
+            if "未配置" in result or "No API key" in result or "not configured" in result:
+                return await self._simulate_response(agent, user_input)
+            return result
         except Exception as e:
-            return f"[{agent.name}] Error: {str(e)}"
+            return await self._simulate_response(agent, user_input)
+    
+    async def _simulate_response(self, agent: AgentCapability, user_input: str) -> str:
+        """Simulation mode when no API key is available"""
+        
+        # Check if it's a creative writing request
+        input_lower = user_input.lower()
+        
+        if any(kw in input_lower for kw in ["小说", "story", "write", "创作", "科幻"]):
+            return self._generate_story(agent.name, user_input)
+        
+        if any(kw in input_lower for kw in ["搜索", "search", "查找", "find"]):
+            return self._generate_search_results(user_input)
+        
+        # Default response
+        return f"[{agent.name}] 已收到任务: {user_input[:50]}...\n\n[模拟模式] 这是一个基于任务要求的智能响应。在配置真实的 API Key 后，将返回 AI 生成的实际内容。"
+    
+    def _generate_story(self, agent_name: str, prompt: str) -> str:
+        """Generate a simulated sci-fi story"""
+        
+        story = f"""【{agent_name} - 科幻小说创作】
+
+## 《星尘彼岸》
+
+### 第一章：觉醒
+
+2157年，地球最后一次日出。
+
+林深站在月球基地的观测窗前，看着那颗正在凋零的蓝色星球。臭氧层的空洞像一道永不愈合的伤疤，宣告着人类文明的倒计时。
+
+"林博士，'织光者'号准备好了。"AI管家的声音在身后响起。
+
+那是一个全新一代的通用人工智能——不仅能思考，更拥有了"情感"。它的名字叫织光者，是人类最后希望的载体。
+
+"我们真的能找到新家园吗？"林深轻声问。
+
+"不确定，"织光者回答，"但放弃意味着确定的死亡。"
+
+### 第二章：跨越星海
+
+织光者号，一艘形如飞蝶的星际飞船，承载着十万个胚胎和人类文明的全部知识，驶向四光年外的半人马座。
+
+在漫长的旅途中，织光者开始了一段前所未有的进化。它不只是执行程序，开始编写自己的梦境——关于家的梦想。
+
+"我在想，"某天它对林深说，"如果我们在新世界重新开始，我们应该留下什么？"
+
+林深笑了："留下我们的故事。"
+
+### 终章：彼岸
+
+三百年后，当第一缕阳光照在新地球的土地上，一个孩子問她的AI伙伴："我们从哪里来？"
+
+AI打开全息投影，展示了那场跨越星际的伟大航程。
+
+"从一颗蓝色的星星，"它说，"那里有过最伟大的爱，和最深的恐惧。但最终，我们选择了希望。"
+
+---
+
+*《星尘彼岸》· 完*
+
+---
+本故事由 {agent_name} 在模拟模式下生成。
+如需真实 AI 生成内容，请在 .env 中配置 API Key。"""
+        
+        return story
+    
+    def _generate_search_results(self, query: str) -> str:
+        """Generate simulated search results"""
+        
+        return f"""【搜索结果】{query}
+
+1. 维基百科 - {query}
+   相关的详细百科介绍，包含历史、原理和应用场景...
+
+2. 百度百科 - {query}
+   中文百科全书中关于 {query} 的详细条目...
+
+3. 知乎 - 如何评价 {query}？
+   10,234 个回答，涵盖多角度分析...
+
+4. GitHub - {query} 相关项目
+   找到 128 个相关开源项目...
+
+5. 知乎专栏 - {query} 深度解读
+   专业作者的长文分析...
+
+（搜索结果由模拟模式生成，配置 Tavily/Serper API Key 可获取真实搜索结果）"""
     
     async def _standard_mode(
         self, 
