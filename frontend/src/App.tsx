@@ -578,7 +578,7 @@ export default function App() {
             >
               <div className="loading-spinner">
                 <div className="spinner"></div>
-                <span>决策AI拆分指令 -> 分发执行 -> 评审团评分中...</span>
+                <span>决策AI拆分指令 -&gt; 分发执行 -&gt; 评审团评分中...</span>
               </div>
             </motion.div>
           )}
