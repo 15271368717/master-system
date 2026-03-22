@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "master-system"
+version = "2.1.0"
+description = "Multi-Agent Synergized Task Execution & Result Integration System"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "M.A.S.T.E.R. Team", email = "team@master-system.dev"}
+]
+keywords = ["ai", "multi-agent", "llm", "协同", "人工智能"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.5.0",
+    "python-dotenv>=1.0.0",
+    "openai>=1.12.0",
+    "anthropic>=0.18.0",
+    "aiohttp>=3.9.0",
+    "httpx>=0.26.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/15271368717/master-system"
+Repository = "https://github.com/15271368717/master-system"
+Issues = "https://github.com/15271368717/master-system/issues"
+
+[project.scripts]
+master-backend = "main:app"
+
+[tool.setuptools.packages.find]
+where = ["backend"]
+
+[tool.setuptools.package-data]
+"*" = ["*.env.example"]
